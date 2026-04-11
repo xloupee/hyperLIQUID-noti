@@ -1,0 +1,21 @@
+{
+  "rules": [
+    {
+      "id": "openai-perp-above-0.50",
+      "market": "perp",
+      "symbol": "OPENAI",
+      "dex": "vntl",
+      "direction": "above",
+      "threshold": "0.50",
+      "enabled": true
+    },
+    {
+      "id": "btc-perp-below-90000",
+      "market": "perp",
+      "symbol": "BTC",
+      "direction": "below",
+      "threshold": "90000",
+      "enabled": true
+    }
+  ]
+}
