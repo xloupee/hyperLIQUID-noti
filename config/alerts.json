@@ -1,21 +1,39 @@
 {
   "rules": [
     {
-      "id": "openai-live-test",
+      "id": "openai-above-900",
       "market": "perp",
       "symbol": "OPENAI",
       "dex": "vntl",
       "direction": "above",
-      "threshold": "100",
+      "threshold": "900",
       "enabled": true
     },
     {
-      "id": "anthropic-live-test",
+      "id": "openai-below-800",
+      "market": "perp",
+      "symbol": "OPENAI",
+      "dex": "vntl",
+      "direction": "below",
+      "threshold": "800",
+      "enabled": true
+    },
+    {
+      "id": "anthropic-above-900",
       "market": "perp",
       "symbol": "ANTHROPIC",
       "dex": "vntl",
       "direction": "above",
-      "threshold": "100",
+      "threshold": "900",
+      "enabled": true
+    },
+    {
+      "id": "anthropic-below-800",
+      "market": "perp",
+      "symbol": "ANTHROPIC",
+      "dex": "vntl",
+      "direction": "below",
+      "threshold": "800",
       "enabled": true
     }
   ]

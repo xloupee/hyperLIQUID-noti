@@ -7,7 +7,11 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:restart": "pm2 restart hyperliquid-noti",
+    "pm2:stop": "pm2 stop hyperliquid-noti",
+    "pm2:logs": "pm2 logs hyperliquid-noti"
   },
   "engines": {
     "node": ">=24"
