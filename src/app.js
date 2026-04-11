@@ -10,7 +10,9 @@ export class AlertApp {
     this.logger = logger;
     this.rules = [];
     this.rulesByCoin = new Map();
+    this.rulesByCommand = new Map();
     this.lastPrices = new Map();
+    this.lastContexts = new Map();
     this.stream = null;
   }
 
@@ -29,10 +31,12 @@ export class AlertApp {
 
   indexRules() {
     this.rulesByCoin.clear();
+    this.rulesByCommand.clear();
     for (const rule of this.rules) {
       const existing = this.rulesByCoin.get(rule.coin) || [];
       existing.push(rule);
       this.rulesByCoin.set(rule.coin, existing);
+      this.rulesByCommand.set(String(rule.symbol).trim().toLowerCase(), rule);
     }
   }
 
@@ -62,9 +66,12 @@ export class AlertApp {
     this.stateStore.flush();
   }
 
-  async handlePrice({ coin, price }) {
+  async handlePrice({ coin, price, raw }) {
     const previousPrice = this.lastPrices.get(coin);
     this.lastPrices.set(coin, price);
+    if (raw?.ctx) {
+      this.lastContexts.set(coin, raw.ctx);
+    }
 
     const rules = this.rulesByCoin.get(coin) || [];
     for (const rule of rules) {
@@ -101,4 +108,73 @@ export class AlertApp {
     });
     this.stateStore.flush();
   }
+
+  getHelpText() {
+    const commands = [...this.rulesByCommand.keys()].sort().join(", ");
+    return `Send one of: ${commands}`;
+  }
+
+  async buildMarketReply(command) {
+    const rule = this.rulesByCommand.get(String(command).toLowerCase());
+    if (!rule) {
+      return `${this.getHelpText()}\nUnknown command: ${command}`;
+    }
+
+    const context = (await this.getLatestContext(rule)) || {};
+    const markPx = firstFiniteNumber(this.lastPrices.get(rule.coin), context.markPx);
+    const midPx = firstFiniteNumber(context.midPx);
+    const oraclePx = firstFiniteNumber(context.oraclePx);
+    const prevDayPx = firstFiniteNumber(context.prevDayPx);
+    const funding = firstFiniteNumber(context.funding);
+    const dayNtlVlm = firstFiniteNumber(context.dayNtlVlm);
+    const persisted = this.stateStore.getRuleState(rule.id);
+
+    return [
+      `${rule.symbol} (${rule.coin})`,
+      `Market: ${rule.market}${rule.dex ? ` on ${rule.dex}` : ""}`,
+      `Mark: ${formatMaybeNumber(markPx)}`,
+      `Mid: ${formatMaybeNumber(midPx)}`,
+      `Oracle: ${formatMaybeNumber(oraclePx)}`,
+      `24h Prev: ${formatMaybeNumber(prevDayPx)}`,
+      `Funding: ${formatMaybeNumber(funding, 8)}`,
+      `24h Notional Vol: ${formatMaybeNumber(dayNtlVlm, 2)}`,
+      `Alert: ${rule.direction} ${rule.threshold}`,
+      `Last Alert State: ${persisted?.side || "unknown"}`,
+    ].join("\n");
+  }
+
+  async getLatestContext(rule) {
+    const cached = this.lastContexts.get(rule.coin);
+    if (cached) {
+      return cached;
+    }
+
+    const fresh = await this.client.fetchAssetContext(rule);
+    if (fresh) {
+      this.lastContexts.set(rule.coin, fresh);
+      if (Number.isFinite(Number(fresh.markPx))) {
+        this.lastPrices.set(rule.coin, Number(fresh.markPx));
+      }
+    }
+    return fresh;
+  }
+}
+
+function firstFiniteNumber(...values) {
+  for (const value of values) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+}
+
+function formatMaybeNumber(value, decimals = 2) {
+  if (!Number.isFinite(value)) {
+    return "n/a";
+  }
+  return Number(value).toLocaleString("en-US", {
+    maximumFractionDigits: decimals,
+  });
 }

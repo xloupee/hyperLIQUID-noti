@@ -1,0 +1,22 @@
+{
+  "rules": [
+    {
+      "id": "openai-live-test",
+      "market": "perp",
+      "symbol": "OPENAI",
+      "dex": "vntl",
+      "direction": "above",
+      "threshold": "100",
+      "enabled": true
+    },
+    {
+      "id": "anthropic-live-test",
+      "market": "perp",
+      "symbol": "ANTHROPIC",
+      "dex": "vntl",
+      "direction": "above",
+      "threshold": "100",
+      "enabled": true
+    }
+  ]
+}

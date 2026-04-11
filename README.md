@@ -7,6 +7,7 @@ Realtime Hyperliquid price alerts sent through Telegram.
 - Watches Hyperliquid spot and perp markets over websocket
 - Resolves config symbols to canonical Hyperliquid `coin` identifiers
 - Sends Telegram alerts when price crosses a configured threshold
+- Replies in Telegram when you send a tracked symbol like `openai` or `anthropic`
 - Persists last-known rule state so restarts do not resend the same crossing immediately
 
 ## Setup
@@ -15,6 +16,7 @@ Realtime Hyperliquid price alerts sent through Telegram.
 2. Copy `config/alerts.example.json` to `config/alerts.json`
 3. Fill in your Telegram bot token and chat id
 4. Update each rule with the symbol and threshold you want
+5. Message the bot with `openai`, `anthropic`, or `/help`
 
 For remapped spot assets, set `canonicalCoin` explicitly. Hyperliquid spot often uses pair names like `PURR/USDC` or `@<index>` instead of UI labels.
 

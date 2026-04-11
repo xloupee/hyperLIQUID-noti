@@ -46,6 +46,23 @@ export class HyperliquidClient {
     return this.postInfo({ type: "spotMetaAndAssetCtxs" });
   }
 
+  async fetchAssetContext(rule) {
+    if (rule.market === "perp") {
+      const [meta, contexts] = await this.postInfo({
+        type: "metaAndAssetCtxs",
+        dex: rule.dex || "",
+      });
+      const universe = Array.isArray(meta?.universe) ? meta.universe : [];
+      const index = universe.findIndex((item) => item.name === rule.coin);
+      return index >= 0 ? contexts[index] || null : null;
+    }
+
+    const [meta, contexts] = await this.postInfo({ type: "spotMetaAndAssetCtxs" });
+    const universe = Array.isArray(meta?.universe) ? meta.universe : [];
+    const index = universe.findIndex((item) => item.name === rule.coin);
+    return index >= 0 ? contexts[index] || null : null;
+  }
+
   async resolveRules(rules) {
     const spotMetaPromise = this.fetchSpotMeta();
     const perpDexes = [...new Set(rules.filter((rule) => rule.market === "perp").map((rule) => rule.dex || ""))];
@@ -77,11 +94,18 @@ export class HyperliquidClient {
   resolvePerpRule(rule, perpMeta) {
     const universe = Array.isArray(perpMeta?.universe) ? perpMeta.universe : [];
     const normalizedInput = normalizeInputSymbol(rule.symbol);
-    const matched = universe.find((item) => matchesSymbol(item.name, normalizedInput));
+    const candidates = new Set([normalizedInput]);
+    if (rule.dex) {
+      candidates.add(normalizeInputSymbol(`${rule.dex}:${rule.symbol}`));
+    }
+
+    const matched = universe.find((item) =>
+      Array.from(candidates).some((candidate) => matchesSymbol(item.name, candidate)),
+    );
     if (!matched) {
       const suggestions = suggestMatches(
         universe.map((item) => item.name),
-        normalizedInput,
+        Array.from(candidates)[0],
       );
       throw new Error(
         `Unable to resolve perp symbol "${rule.symbol}". Suggestions: ${suggestions.join(", ") || "none"}.`,

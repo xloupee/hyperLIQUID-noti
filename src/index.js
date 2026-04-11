@@ -4,6 +4,7 @@ import { loadAppConfig } from "./config.js";
 import { HyperliquidClient } from "./hyperliquid.js";
 import { TelegramNotifier } from "./notifier.js";
 import { JsonStateStore } from "./state-store.js";
+import { TelegramBotService } from "./telegram-bot.js";
 
 function ensureRulesFile(pathname) {
   if (!fs.existsSync(pathname)) {
@@ -36,9 +37,16 @@ async function main() {
 
   await app.init();
   app.start();
+  const telegramBot = new TelegramBotService({
+    notifier,
+    app,
+    allowedChatId: config.telegramChatId,
+  });
+  telegramBot.start();
 
   for (const signal of ["SIGINT", "SIGTERM"]) {
     process.on(signal, () => {
+      void telegramBot.stop();
       app.stop();
       process.exit(0);
     });

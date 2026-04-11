@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { computeRuleSide, evaluateRuleCrossing, loadRulesFromConfig } from "../src/rules.js";
+import { HyperliquidClient } from "../src/hyperliquid.js";
 
 test("loadRulesFromConfig filters disabled rules and parses thresholds", () => {
   const rules = loadRulesFromConfig({
@@ -51,4 +52,42 @@ test("computeRuleSide returns correct side", () => {
   assert.equal(computeRuleSide({ threshold: 10 }, 11), "above");
   assert.equal(computeRuleSide({ threshold: 10 }, 9), "below");
   assert.equal(computeRuleSide({ threshold: 10 }, 10), "at");
+});
+
+test("resolveRule matches builder perp using dex and symbol", () => {
+  const client = new HyperliquidClient({
+    apiUrl: "https://api.hyperliquid.xyz",
+    wsUrl: "wss://api.hyperliquid.xyz/ws",
+    fetchImpl: async () => {
+      throw new Error("not used");
+    },
+    WebSocketImpl: class {},
+    logger: { info() {}, warn() {}, error() {} },
+  });
+
+  const resolved = client.resolveRule(
+    {
+      id: "openai",
+      market: "perp",
+      symbol: "OPENAI",
+      dex: "vntl",
+      canonicalCoin: null,
+      direction: "above",
+      threshold: 1,
+      enabled: true,
+    },
+    {
+      perpMetaByDex: new Map([
+        [
+          "vntl",
+          {
+            universe: [{ name: "vntl:OPENAI" }],
+          },
+        ],
+      ]),
+      spotMeta: { universe: [] },
+    },
+  );
+
+  assert.equal(resolved.coin, "vntl:OPENAI");
 });

@@ -77,3 +77,67 @@ test("AlertApp sends only on threshold crossing and persists state", async () =>
   const persisted = JSON.parse(fs.readFileSync(statePath, "utf8"));
   assert.equal(persisted.rules["btc-above"].lastPrice, 101);
 });
+
+test("buildMarketReply returns info for a tracked symbol", async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "hl-reply-"));
+  const rulesPath = path.join(tempDir, "alerts.json");
+  const statePath = path.join(tempDir, "state.json");
+
+  fs.writeFileSync(
+    rulesPath,
+    JSON.stringify({
+      rules: [
+        {
+          id: "anthropic-above",
+          market: "perp",
+          symbol: "ANTHROPIC",
+          dex: "vntl",
+          direction: "above",
+          threshold: "100",
+          enabled: true
+        }
+      ]
+    }),
+  );
+
+  const client = {
+    async resolveRules(rules) {
+      return rules.map((rule) => ({
+        ...rule,
+        coin: "vntl:ANTHROPIC",
+        displayName: "vntl:ANTHROPIC",
+      }));
+    },
+    async fetchAssetContext() {
+      return {
+        markPx: "859.52",
+        midPx: "862.575",
+        oraclePx: "753.07",
+        prevDayPx: "798.87",
+        funding: "0.0000537699",
+        dayNtlVlm: "649384.1514300002",
+      };
+    },
+    createPriceStream() {
+      return {
+        start() {},
+        stop() {},
+      };
+    },
+  };
+
+  const app = new AlertApp({
+    client,
+    notifier: { sendAlert() {} },
+    stateStore: new JsonStateStore(statePath),
+    rulesPath,
+    logger: { info() {}, error() {} },
+  });
+
+  await app.init();
+  const reply = await app.buildMarketReply("anthropic");
+
+  assert.match(reply, /ANTHROPIC/);
+  assert.match(reply, /Mark: 859.52/);
+  assert.match(reply, /Alert: above 100/);
+});
