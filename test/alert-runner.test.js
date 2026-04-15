@@ -244,3 +244,25 @@ test("runAlertChecks initializes first-seen state without alerting", async () =>
   assert.equal(results[0].status, "initialized");
   assert.equal(stateStore.dump().get("spot-below").side, "below");
 });
+
+test("runAlertChecks returns no-op when no rules are enabled", async () => {
+  const results = await runAlertChecks({
+    rawConfig: {
+      rules: [],
+    },
+    client: createClient({
+      rules: [],
+      contexts: {},
+    }),
+    notifier: {
+      async sendAlert() {
+        throw new Error("not used");
+      },
+    },
+    stateStore: createMemoryStateStore(),
+    logger: { info() {}, warn() {} },
+    now: new Date("2026-04-11T00:00:00.000Z"),
+  });
+
+  assert.deepEqual(results, []);
+});

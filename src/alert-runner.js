@@ -3,7 +3,8 @@ import { loadRulesFromConfig, computeRuleSide, evaluateRuleCrossing } from "./ru
 export async function runAlertChecks({ rawConfig, client, notifier, stateStore, logger = console, now = new Date() }) {
   const rules = loadRulesFromConfig(rawConfig);
   if (rules.length === 0) {
-    throw new Error("No enabled rules found.");
+    logger.info("No enabled rules found.");
+    return [];
   }
 
   const resolvedRules = await client.resolveRules(rules);

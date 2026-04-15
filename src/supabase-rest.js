@@ -26,6 +26,18 @@ export class SupabaseRestClient {
     return response.json();
   }
 
+  async select(table, query) {
+    const response = await this.request(table, {
+      method: "GET",
+      query: {
+        ...query,
+        select: "*",
+      },
+    });
+
+    return response.json();
+  }
+
   async upsert(table, payload, options = {}) {
     const query = {};
     if (options.returning === "minimal") {
@@ -54,6 +66,24 @@ export class SupabaseRestClient {
         }),
       },
       body: payload,
+    });
+
+    if (options.returning === "minimal") {
+      return null;
+    }
+
+    return response.json();
+  }
+
+  async delete(table, query, options = {}) {
+    const response = await this.request(table, {
+      method: "DELETE",
+      query,
+      headers: {
+        Prefer: buildPreferHeader({
+          returning: options.returning || "representation",
+        }),
+      },
     });
 
     if (options.returning === "minimal") {

@@ -3,6 +3,7 @@ import { HyperliquidClient } from "./hyperliquid.js";
 import { runAlertChecks } from "./alert-runner.js";
 import { SupabaseNotifier } from "./supabase-notifier.js";
 import { SupabaseRestClient } from "./supabase-rest.js";
+import { SupabaseRulesStore } from "./supabase-rules-store.js";
 import { SupabaseStateStore } from "./supabase-state-store.js";
 
 export default {
@@ -16,11 +17,15 @@ export default {
       serviceRoleKey: config.supabaseServiceRoleKey,
     });
     const notifier = new SupabaseNotifier(supabase);
+    const rulesStore = new SupabaseRulesStore(supabase);
     const stateStore = new SupabaseStateStore(supabase);
+    const rawConfig = await rulesStore.getRulesConfig({
+      fallbackRawConfig: getAlertsConfig(),
+    });
 
     ctx.waitUntil(
       runAlertChecks({
-        rawConfig: getAlertsConfig(),
+        rawConfig,
         client,
         notifier,
         stateStore,

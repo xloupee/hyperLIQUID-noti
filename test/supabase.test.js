@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { formatPokeMessage } from "../src/messages.js";
 import { SupabaseNotifier } from "../src/supabase-notifier.js";
 import { SupabaseRestClient } from "../src/supabase-rest.js";
+import { SupabaseRulesStore } from "../src/supabase-rules-store.js";
 import { SupabaseStateStore } from "../src/supabase-state-store.js";
 
 test("SupabaseStateStore reads rule state from the REST client", async () => {
@@ -127,4 +128,88 @@ test("SupabaseRestClient surfaces non-2xx responses", async () => {
       }),
     /Supabase request failed for alert_notifications: 400/,
   );
+});
+
+test("SupabaseRestClient deletes rows with filters", async () => {
+  let receivedMethod = "";
+  let receivedUrl = "";
+  const client = new SupabaseRestClient({
+    url: "https://example.supabase.co",
+    serviceRoleKey: "service-role",
+    fetchImpl: async (url, init) => {
+      receivedMethod = String(init?.method);
+      receivedUrl = String(url);
+      return new Response(JSON.stringify([{ rule_id: "perp-vntl-openai-above-900" }]), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+    },
+  });
+
+  const rows = await client.delete("alert_rules", { rule_id: "eq.perp-vntl-openai-above-900" });
+  assert.equal(receivedMethod, "DELETE");
+  assert.match(receivedUrl, /alert_rules/);
+  assert.deepEqual(rows, [{ rule_id: "perp-vntl-openai-above-900" }]);
+});
+
+test("SupabaseRulesStore loads enabled rules from alert_rules", async () => {
+  const store = new SupabaseRulesStore({
+    async select(table, query) {
+      assert.equal(table, "alert_rules");
+      assert.deepEqual(query, {
+        enabled: "eq.true",
+        order: "created_at.asc",
+      });
+      return [
+        {
+          rule_id: "perp-vntl-openai-above-900",
+          market: "perp",
+          symbol: "OPENAI",
+          dex: "vntl",
+          canonical_coin: null,
+          direction: "above",
+          threshold: "900",
+          enabled: true,
+        },
+      ];
+    },
+  });
+
+  const rules = await store.listEnabledRules();
+  assert.deepEqual(rules, [
+    {
+      id: "perp-vntl-openai-above-900",
+      market: "perp",
+      symbol: "OPENAI",
+      dex: "vntl",
+      canonicalCoin: null,
+      direction: "above",
+      threshold: 900,
+      enabled: true,
+    },
+  ]);
+});
+
+test("SupabaseRulesStore falls back when alert_rules table is missing", async () => {
+  const store = new SupabaseRulesStore({
+    async select() {
+      throw new Error("Supabase request failed for alert_rules: 404 relation \"public.alert_rules\" does not exist");
+    },
+  });
+
+  const fallback = {
+    rules: [
+      {
+        id: "fallback-rule",
+      },
+    ],
+  };
+
+  const config = await store.getRulesConfig({
+    fallbackRawConfig: fallback,
+  });
+
+  assert.deepEqual(config, fallback);
 });
