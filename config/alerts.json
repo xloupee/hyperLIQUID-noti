@@ -35,6 +35,14 @@
       "direction": "below",
       "threshold": "900",
       "enabled": true
+    },
+    {
+      "id": "hype-usdc-below-43",
+      "market": "spot",
+      "symbol": "HYPE/USDC",
+      "direction": "below",
+      "threshold": "43",
+      "enabled": true
     }
   ]
 }
