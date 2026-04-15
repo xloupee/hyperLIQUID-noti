@@ -19,21 +19,21 @@
       "enabled": true
     },
     {
-      "id": "anthropic-above-900",
+      "id": "anthropic-above-1000",
       "market": "perp",
       "symbol": "ANTHROPIC",
       "dex": "vntl",
       "direction": "above",
-      "threshold": "900",
+      "threshold": "1000",
       "enabled": true
     },
     {
-      "id": "anthropic-below-800",
+      "id": "anthropic-below-900",
       "market": "perp",
       "symbol": "ANTHROPIC",
       "dex": "vntl",
       "direction": "below",
-      "threshold": "800",
+      "threshold": "900",
       "enabled": true
     }
   ]

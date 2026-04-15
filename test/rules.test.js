@@ -108,8 +108,6 @@ test("formatPokeMessage renders SMS-ready content", () => {
     timestamp: "2026-04-11T00:00:00.000Z",
   });
 
-  assert.match(message, /Hyperliquid alert triggered/);
-  assert.match(message, /OPENAI/);
-  assert.match(message, /above 900/);
-  assert.match(message, /Current mark price: 905/);
+  assert.match(message, /OPENAI crossed above 900/);
+  assert.match(message, /Mark price: 905/);
 });
