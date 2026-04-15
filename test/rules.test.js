@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { computeRuleSide, evaluateRuleCrossing, loadRulesFromConfig } from "../src/rules.js";
+import { formatPokeMessage } from "../src/messages.js";
 import { HyperliquidClient } from "../src/hyperliquid.js";
 
 test("loadRulesFromConfig filters disabled rules and parses thresholds", () => {
@@ -57,11 +58,9 @@ test("computeRuleSide returns correct side", () => {
 test("resolveRule matches builder perp using dex and symbol", () => {
   const client = new HyperliquidClient({
     apiUrl: "https://api.hyperliquid.xyz",
-    wsUrl: "wss://api.hyperliquid.xyz/ws",
     fetchImpl: async () => {
       throw new Error("not used");
     },
-    WebSocketImpl: class {},
     logger: { info() {}, warn() {}, error() {} },
   });
 
@@ -90,4 +89,27 @@ test("resolveRule matches builder perp using dex and symbol", () => {
   );
 
   assert.equal(resolved.coin, "vntl:OPENAI");
+});
+
+test("formatPokeMessage renders SMS-ready content", () => {
+  const message = formatPokeMessage({
+    rule: {
+      id: "openai-above-900",
+      market: "perp",
+      symbol: "OPENAI",
+      dex: "vntl",
+      threshold: 900,
+      direction: "above",
+    },
+    resolved: {
+      coin: "vntl:OPENAI",
+    },
+    price: 905,
+    timestamp: "2026-04-11T00:00:00.000Z",
+  });
+
+  assert.match(message, /Hyperliquid alert triggered/);
+  assert.match(message, /OPENAI/);
+  assert.match(message, /above 900/);
+  assert.match(message, /Current mark price: 905/);
 });

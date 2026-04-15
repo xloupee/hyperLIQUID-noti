@@ -1,0 +1,14 @@
+{
+  "name": "hyperliquid-noti",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-04-10",
+  "triggers": {
+    "crons": [
+      "* * * * *"
+    ]
+  },
+  "vars": {
+    "HYPERLIQUID_API_URL": "https://api.hyperliquid.xyz",
+    "SUPABASE_URL": "https://szhqzkpznawqvlmaqafj.supabase.co"
+  }
+}

@@ -3,17 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Realtime Hyperliquid price alerts via Telegram.",
+  "description": "Scheduled Hyperliquid price alerts via Cloudflare Workers, Supabase, and Poke.",
   "scripts": {
-    "dev": "node --watch src/index.js",
-    "start": "node src/index.js",
+    "dev": "npx wrangler dev --test-scheduled",
+    "start": "npx wrangler dev --test-scheduled",
+    "deploy": "npx wrangler deploy",
     "test": "node --test",
-    "pm2:start": "pm2 start ecosystem.config.cjs",
-    "pm2:restart": "pm2 restart hyperliquid-noti",
-    "pm2:stop": "pm2 stop hyperliquid-noti",
-    "pm2:logs": "pm2 logs hyperliquid-noti"
+    "cf:typegen": "npx wrangler types"
   },
   "engines": {
     "node": ">=24"
+  },
+  "devDependencies": {
+    "wrangler": "^4.37.1"
   }
 }

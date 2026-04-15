@@ -1,11 +1,9 @@
 import { matchesSymbol, normalizeInputSymbol, quoteAliases } from "./rules.js";
 
 export class HyperliquidClient {
-  constructor({ apiUrl, wsUrl, fetchImpl = fetch, WebSocketImpl = WebSocket, logger = console }) {
+  constructor({ apiUrl, fetchImpl = fetch, logger = console }) {
     this.apiUrl = apiUrl.replace(/\/$/u, "");
-    this.wsUrl = wsUrl;
     this.fetchImpl = fetchImpl;
-    this.WebSocketImpl = WebSocketImpl;
     this.logger = logger;
   }
 
@@ -61,6 +59,28 @@ export class HyperliquidClient {
     const universe = Array.isArray(meta?.universe) ? meta.universe : [];
     const index = universe.findIndex((item) => item.name === rule.coin);
     return index >= 0 ? contexts[index] || null : null;
+  }
+
+  async fetchContextsForRules(rules) {
+    const contexts = new Map();
+    const spotRules = rules.filter((rule) => rule.market === "spot");
+    const perpDexes = [...new Set(rules.filter((rule) => rule.market === "perp").map((rule) => rule.dex || ""))];
+
+    if (spotRules.length > 0) {
+      const [meta, assetContexts] = await this.fetchSpotAssetCtxs();
+      assignContexts(contexts, meta?.universe, assetContexts, spotRules);
+    }
+
+    for (const dex of perpDexes) {
+      const dexRules = rules.filter((rule) => rule.market === "perp" && (rule.dex || "") === dex);
+      const [meta, assetContexts] = await this.postInfo({
+        type: "metaAndAssetCtxs",
+        dex,
+      });
+      assignContexts(contexts, meta?.universe, assetContexts, dexRules);
+    }
+
+    return contexts;
   }
 
   async resolveRules(rules) {
@@ -152,107 +172,6 @@ export class HyperliquidClient {
       displayName: matched.name,
     };
   }
-
-  createPriceStream(coins, { onPrice, onOpen, onError } = {}) {
-    return new HyperliquidPriceStream({
-      wsUrl: this.wsUrl,
-      coins,
-      WebSocketImpl: this.WebSocketImpl,
-      logger: this.logger,
-      onPrice,
-      onOpen,
-      onError,
-    });
-  }
-}
-
-class HyperliquidPriceStream {
-  constructor({ wsUrl, coins, WebSocketImpl, logger, onPrice, onOpen, onError }) {
-    this.wsUrl = wsUrl;
-    this.coins = [...new Set(coins)];
-    this.WebSocketImpl = WebSocketImpl;
-    this.logger = logger;
-    this.onPrice = onPrice;
-    this.onOpen = onOpen;
-    this.onError = onError;
-    this.socket = null;
-    this.reconnectTimer = null;
-    this.closedManually = false;
-    this.reconnectAttempt = 0;
-  }
-
-  start() {
-    this.closedManually = false;
-    this.connect();
-  }
-
-  stop() {
-    this.closedManually = true;
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    if (this.socket) {
-      this.socket.close();
-      this.socket = null;
-    }
-  }
-
-  connect() {
-    this.socket = new this.WebSocketImpl(this.wsUrl);
-    this.socket.addEventListener("open", () => {
-      this.reconnectAttempt = 0;
-      this.logger.info(`Connected to Hyperliquid websocket at ${this.wsUrl}`);
-      for (const coin of this.coins) {
-        this.socket.send(
-          JSON.stringify({
-            method: "subscribe",
-            subscription: {
-              type: "activeAssetCtx",
-              coin,
-            },
-          }),
-        );
-      }
-      this.onOpen?.();
-    });
-
-    this.socket.addEventListener("message", (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        if (message.channel !== "activeAssetCtx") {
-          return;
-        }
-
-        const coin = message.data?.coin;
-        const markPx = Number(message.data?.ctx?.markPx);
-        if (!coin || !Number.isFinite(markPx)) {
-          return;
-        }
-
-        this.onPrice?.({ coin, price: markPx, raw: message.data });
-      } catch (error) {
-        this.onError?.(error);
-      }
-    });
-
-    this.socket.addEventListener("error", (event) => {
-      this.onError?.(new Error(`WebSocket error: ${event.type}`));
-    });
-
-    this.socket.addEventListener("close", () => {
-      if (this.closedManually) {
-        return;
-      }
-      const delay = computeReconnectDelay(this.reconnectAttempt++);
-      this.logger.warn(`Hyperliquid websocket closed. Reconnecting in ${delay}ms.`);
-      this.reconnectTimer = setTimeout(() => this.connect(), delay);
-    });
-  }
-}
-
-function computeReconnectDelay(attempt) {
-  return Math.min(1000 * 2 ** attempt, 30_000);
 }
 
 function suggestMatches(options, input) {
@@ -284,4 +203,16 @@ function scoreCandidate(option, input) {
     }
   }
   return overlap;
+}
+
+function assignContexts(contextMap, universe, assetContexts, rules) {
+  const safeUniverse = Array.isArray(universe) ? universe : [];
+  const safeContexts = Array.isArray(assetContexts) ? assetContexts : [];
+
+  for (const rule of rules) {
+    const index = safeUniverse.findIndex((item) => item.name === rule.coin);
+    if (index >= 0) {
+      contextMap.set(rule.coin, safeContexts[index] || null);
+    }
+  }
 }
